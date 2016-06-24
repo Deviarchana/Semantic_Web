@@ -1,0 +1,169 @@
+<project name="semantic" default="runSchemaGen" basedir=".">
+ 
+  <!-- Configuration properties -->
+  <!-- ======================== -->
+  <property environment="env" />
+	
+  <property file="build.properties"/>
+  <property file="load.properties"/>
+  <!-- Source code locations -->
+  <property name="src.dir"         	value="src"/>
+  <property name="test.dir"        	value="semantic-functional-tests"/>
+  <property name="data.dir"        	value="data"/>
+  <property name="classes.dir"     	value="classes"/>
+
+  <property name="test.lib.dir"        	value="semantic-functional-tests/lib"/>
+  <property name="test.classes.dir"    	value="semantics-functional-tests/classes"/>
+  <property name="test.src.dir"        	value="semantics-functional-tests/src"/>
+  <property name="lib.dir"         	value="lib"/>
+
+	<property name="dist.dir" value="dist" />
+
+  <path id="test.classpath">
+    <fileset dir="${test.lib.dir}" includes="*.jar"/>
+    <pathelement location="${test.classes.dir}" />
+  </path>
+
+	<path id="classpath.tools">
+		<fileset dir="${lib.dir}" includes="**/*.jar" />
+		
+	</path>
+
+
+  <!-- Source code preparation targets -->
+  <!-- =============================== -->
+
+  <target name="clean-classes"
+    description="Remove all contents from ${classes.dir} to ensure a clean build">
+    <delete dir="${test.classes.dir}"/>
+    <delete dir="${war.classes.dir}"/>
+    <delete dir="${classes.dir}"/>
+    <mkdir dir="${classes.dir}"/>
+    <mkdir dir="${test.classes.dir}"/>
+    <mkdir dir="${war.classes.dir}"/>
+  </target>
+
+  <!-- Primary Java build targets -->
+
+  <target name="compile-util" 
+    description="Compile the copied source tree into class files under ${classes.dir}" depends="runSchemaGen">
+    <delete file="dist/infer-util.jar"/>
+    <mkdir dir= "${classes.dir}"/>
+    <javac
+       srcdir="${src.dir}"
+       destdir="${classes.dir}"
+       includeantruntime="false"
+       debug="true"
+    >
+      <classpath refid="war.classpath" />
+   
+    </javac>
+    <jar destfile="dist/infer-util.jar" basedir="util/classes" excludes="**/*.properties, **/*.ttl, **/*.log"/>
+  </target>
+
+  <target name="compile-tests" 
+    description="Compile the tests under ${test.classes.dir}" depends="compile-util">
+    <mkdir dir="${test.classes.dir}"/>
+    <javac
+       srcdir="${test.src.dir}"
+       destdir="${test.classes.dir}"
+    	includeantruntime="false"
+       debug="true"
+       >
+      <classpath refid="test.classpath" />
+      <classpath refid="war.classpath" />
+    </javac>
+  </target>
+
+  <target name="run-small"
+    description="load the data through a web service" depends="compile-util">
+    <mkdir dir="${classes.dir}"/>
+    <copy toFile="${classes.dir}/load.properties" overwrite="true" file="load.properties"/> 
+
+    <java classname="infer.util.LoadAboxWebService" fork="true" output="${classes.dir}/webservice.load.log">
+ 	<classpath>
+	 	<path refid="war.classpath"/>
+ 	</classpath>
+	<arg value="data/reasoning/small.nt" />
+    </java>
+    <antcall target="run-optimize"/>
+  </target>
+	
+  <target name="run-tests"
+    description="run the junit tests using data and results dirs" depends="compile-tests">
+     <copy todir="${test.classes.dir}" overwrite="true"> 
+	<fileset dir="${test.dir}">
+    		<include name="load.properties"/>
+    		<include name="content.txt"/>
+  	</fileset>
+     </copy>
+
+ 	<junit printsummary="yes" haltonfailure="no">
+        	<formatter type="xml"/>
+      		<classpath refid="test.classpath" />
+      		<classpath refid="war.classpath" />
+<!--        	<test fork="yes" name="infer.test.TestGEO" todir="${test.classes.dir}"/> -->
+        	<test fork="yes" name="infer.test.TestSelect" todir="${test.classes.dir}"/>  
+<!--
+        	<test fork="yes" name="infer.test.TestGEO" todir="${test.classes.dir}" methods="testCurrentPartialTrackPointsInfer"/>     
+
+        	<test fork="yes" name="infer.test.TestGEO" todir="${test.classes.dir}" methods="testRouteHistorical"/>  
+        	<test fork="yes" name="infer.test.TestGEO" todir="${test.classes.dir}" methods="testCurrentPartialTrackPointsInferWithRelevantHistory"/>     
+-->
+<!--
+
+        	<test fork="yes" name="infer.test.TestGEO" todir="${test.classes.dir}" methods="testTrackPoints"/>  
+        	<test fork="yes" name="infer.test.TestGEO" todir="${test.classes.dir}" methods="testRouteCurrent"/>  
+-->
+    	</junit>
+
+  </target>
+
+ <!-- <target name="system-test" description="do a system test" depends="delete-deploy, deploy, wait-for-deploy, run-clear-index, run-tests">
+  </target>-->
+
+	
+<!--ONTOLOGY-->
+
+<target name="runSchemaGen" description="Generate the ontologies">
+    <mkdir dir="dist"/>
+		<java classname="jena.schemagen">
+			<classpath>
+				<path refid="classpath.tools" />
+			</classpath>
+			<arg value="-i" />
+			<arg value="music_ontology.owl" />
+			<arg value="-o" />
+			<arg value="src" />
+			<arg value="-n" />
+			<arg value="MusicOntology" />
+			<arg value="--package" />
+			<arg value="generated" />
+			<arg value="--ontology" />
+		</java>
+	</target>
+	
+
+	
+	
+	<target name="compileAbox" description="compile Abox">
+		<mkdir dir="${classes.dir}"/>
+		<javac 
+			srcdir = "${src.dir}"
+			destdir ="${classes.dir}"
+			debug ="true"
+			includeantruntime="false"
+			optimize = "${java.optimize}">
+			<classpath refid ="classpath.tools"/>
+		</javac>
+		</target>
+	
+ 	<target name="clean"
+    		description="Remove all contents from ${classes.dir} to ensure a clean build">
+    		<delete dir="${classes.dir}"/>
+    		<mkdir dir="${classes.dir}"/>
+    		<delete dir="result"/>
+    		<mkdir dir="result"/>
+  	</target>
+
+</project>
